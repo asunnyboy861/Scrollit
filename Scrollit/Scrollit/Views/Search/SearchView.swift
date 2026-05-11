@@ -37,7 +37,7 @@ struct SearchView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
 
-            TextField("Search Reddit", text: $viewModel.searchQuery)
+            TextField("Search communities and posts", text: $viewModel.searchQuery)
                 .textFieldStyle(.plain)
                 .onSubmit {
                     Task { await viewModel.search() }

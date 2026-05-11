@@ -33,7 +33,7 @@ struct SubscriptionView: View {
                 .font(.title2)
                 .fontWeight(.bold)
 
-            Text("Get the full Reddit experience")
+            Text("Get the full experience")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -42,7 +42,7 @@ struct SubscriptionView: View {
 
     private var featuresSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            featureRow("person.badge.key.fill", "Login with Reddit")
+            featureRow("person.badge.key.fill", "Sign in to your account")
             featureRow("arrow.up.arrow.down", "Vote on posts & comments")
             featureRow("bubble.left.and.bubble.right", "Comment & reply")
             featureRow("paperplane", "Post text, images & links")

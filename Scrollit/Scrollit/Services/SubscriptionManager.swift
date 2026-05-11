@@ -1,6 +1,7 @@
 import Foundation
 import StoreKit
 
+@MainActor
 @Observable
 final class SubscriptionManager {
     static let shared = SubscriptionManager()
@@ -17,6 +18,7 @@ final class SubscriptionManager {
 
     private init() {
         updateTask = Task {
+            await updateSubscriptionStatus()
             await loadProducts()
             await listenForTransactions()
         }
@@ -73,15 +75,18 @@ final class SubscriptionManager {
     }
 
     func updateSubscriptionStatus() async {
+        var hasActiveSubscription = false
+
         for await result in Transaction.currentEntitlements {
             if case .verified(let transaction) = result {
                 if transaction.productID == monthlyID || transaction.productID == yearlyID {
-                    isPro = true
-                    return
+                    hasActiveSubscription = true
+                    break
                 }
             }
         }
-        isPro = false
+
+        isPro = hasActiveSubscription
     }
 
     private func listenForTransactions() async {

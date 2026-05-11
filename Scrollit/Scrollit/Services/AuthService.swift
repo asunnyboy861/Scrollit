@@ -1,6 +1,8 @@
 import Foundation
 import AuthenticationServices
+import SwiftUI
 
+@MainActor
 @Observable
 final class AuthService {
     static let shared = AuthService()
@@ -12,6 +14,9 @@ final class AuthService {
 
     var isLoggedIn: Bool { tokenManager.accessToken != nil }
     var currentToken: String? { tokenManager.accessToken }
+
+    private var continuation: CheckedContinuation<URL, Error>?
+    private var webAuthSession: ASWebAuthenticationSession?
 
     private init() {}
 
@@ -36,21 +41,34 @@ final class AuthService {
             throw AuthError.invalidURL
         }
 
-        let callbackURL: URL = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
+        let callbackURL: URL = try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+
             let session = ASWebAuthenticationSession(
                 url: authURL,
                 callbackURLScheme: "scrollit"
             ) { url, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                } else if let url {
-                    continuation.resume(returning: url)
-                } else {
-                    continuation.resume(throwing: AuthError.cancelled)
+                Task { @MainActor in
+                    guard let currentContinuation = self.continuation else { return }
+                    self.continuation = nil
+
+                    if let error {
+                        currentContinuation.resume(throwing: error)
+                    } else if let url {
+                        currentContinuation.resume(returning: url)
+                    } else {
+                        currentContinuation.resume(throwing: AuthError.cancelled)
+                    }
                 }
             }
+
             session.prefersEphemeralWebBrowserSession = false
-            session.start()
+
+            let provider = PresentationAnchorProvider()
+            session.presentationContextProvider = provider
+
+            self.webAuthSession = session
+            _ = session.start()
         }
 
         guard let callbackComponents = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
@@ -73,7 +91,15 @@ final class AuthService {
         let body = "grant_type=authorization_code&code=\(code)&redirect_uri=\(redirectURI.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? redirectURI)&code_verifier=\(codeVerifier)"
         request.httpBody = body.data(using: .utf8)
 
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AuthError.tokenExchangeFailed
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            throw AuthError.tokenExchangeFailed
+        }
 
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let accessToken = json["access_token"] as? String,
@@ -166,6 +192,13 @@ final class AuthService {
             case .refreshFailed: return "Failed to refresh access token"
             }
         }
+    }
+}
+
+final class PresentationAnchorProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene
+        return windowScene?.keyWindow ?? ASPresentationAnchor()
     }
 }
 

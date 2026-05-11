@@ -84,7 +84,7 @@ struct ProfileView: View {
                     .foregroundStyle(.secondary)
 
                 if SubscriptionManager.shared.isPro {
-                    Button("Login with Reddit") {
+                    Button("Sign In") {
                         showingLogin = true
                     }
                     .buttonStyle(.borderedProminent)

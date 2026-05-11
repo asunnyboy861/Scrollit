@@ -14,7 +14,7 @@ struct LoginView: View {
                     .font(.system(size: 60))
                     .foregroundStyle(.orange)
 
-                Text("Login with Reddit")
+                Text("Sign In to Your Account")
                     .font(.title2)
                     .fontWeight(.bold)
 
@@ -40,7 +40,7 @@ struct LoginView: View {
                                 .controlSize(.small)
                                 .tint(.white)
                         }
-                        Text("Continue with Reddit")
+                        Text("Continue")
                             .fontWeight(.semibold)
                     }
                     .frame(maxWidth: .infinity)
