@@ -7,9 +7,9 @@ struct SettingsView: View {
 
     var body: some View {
         List {
-            appearanceSection
             contentSection
             filterSection
+            blockedUsersSection
             aboutSection
             legalSection
         }
@@ -19,14 +19,16 @@ struct SettingsView: View {
         }
     }
 
-    private var appearanceSection: some View {
-        Section("Appearance") {
-            Toggle("Hide NSFW Content", isOn: $viewModel.hideNSFW)
-        }
-    }
-
     private var contentSection: some View {
         Section("Content") {
+            HStack {
+                Label("NSFW Content", systemImage: "eye.slash")
+                Spacer()
+                Link("Manage on reddit.com", destination: URL(string: "https://www.reddit.com/settings/feed")!)
+                    .font(.caption)
+                    .foregroundStyle(.blue)
+            }
+
             NavigationLink {
                 SubscriptionView()
             } label: {
@@ -55,19 +57,37 @@ struct SettingsView: View {
             NavigationLink {
                 FilterSettingsView()
             } label: {
-                Label("Filter Rules", systemImage: "line.3.horizontal.decrease")
+                Label("Keyword Filters", systemImage: "line.3.horizontal.decrease")
+            }
+        }
+    }
+
+    private var blockedUsersSection: some View {
+        Section("Blocked Users") {
+            let blocked = ContentFilterService.shared.blockedUsers.sorted()
+            if blocked.isEmpty {
+                Text("No blocked users")
+                    .foregroundStyle(.secondary)
+                    .font(.subheadline)
+            } else {
+                ForEach(blocked, id: \.self) { username in
+                    HStack {
+                        Text("u/\(username)")
+                            .font(.subheadline)
+                        Spacer()
+                        Button("Unblock") {
+                            ContentFilterService.shared.unblockUser(username)
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                    }
+                }
             }
         }
     }
 
     private var aboutSection: some View {
         Section("About") {
-            NavigationLink {
-                ContactSupportView()
-            } label: {
-                Label("Contact Support", systemImage: "envelope")
-            }
-
             HStack {
                 Text("Version")
                 Spacer()
@@ -79,9 +99,14 @@ struct SettingsView: View {
 
     private var legalSection: some View {
         Section("Legal") {
-            Link("Support", destination: URL(string: viewModel.supportURL)!)
             Link("Privacy Policy", destination: URL(string: viewModel.privacyURL)!)
             Link("Terms of Use", destination: URL(string: viewModel.termsURL)!)
+            Link("Support", destination: URL(string: viewModel.supportURL)!)
+            NavigationLink {
+                ContactSupportView()
+            } label: {
+                Label("Contact Us", systemImage: "envelope")
+            }
         }
     }
 }

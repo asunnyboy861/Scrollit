@@ -3,14 +3,6 @@ import SwiftData
 
 @Observable
 final class SettingsViewModel {
-    var hideNSFW: Bool {
-        get { UserDefaults.standard.bool(forKey: "hide_nsfw") }
-        set {
-            UserDefaults.standard.set(newValue, forKey: "hide_nsfw")
-            ContentFilterService.shared.hideNSFW = newValue
-        }
-    }
-
     var isPro: Bool { SubscriptionManager.shared.isPro }
 
     let supportURL = "https://asunnyboy861.github.io/Scrollit/support.html"

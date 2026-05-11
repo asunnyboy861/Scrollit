@@ -6,7 +6,15 @@ final class ContentFilterService {
     static let shared = ContentFilterService()
 
     var filterRules: [FilterRule] = []
-    var hideNSFW = false
+    var blockedUsers: Set<String> {
+        get {
+            let users = UserDefaults.standard.stringArray(forKey: "blocked_users") ?? []
+            return Set(users)
+        }
+        set {
+            UserDefaults.standard.set(Array(newValue), forKey: "blocked_users")
+        }
+    }
 
     private init() {}
 
@@ -27,8 +35,26 @@ final class ContentFilterService {
         filterRules.removeAll { $0.keyword == rule.keyword && $0.targetSubreddit == rule.targetSubreddit }
     }
 
+    func blockUser(_ username: String) {
+        var users = blockedUsers
+        users.insert(username)
+        blockedUsers = users
+    }
+
+    func unblockUser(_ username: String) {
+        var users = blockedUsers
+        users.remove(username)
+        blockedUsers = users
+    }
+
+    func isUserBlocked(_ username: String) -> Bool {
+        blockedUsers.contains(username)
+    }
+
     func shouldFilter(post: Post) -> Bool {
-        if hideNSFW && post.isNSFW { return true }
+        if !AuthService.shared.isLoggedIn && post.isNSFW { return true }
+
+        if isUserBlocked(post.author) { return true }
 
         for rule in filterRules where rule.isEnabled {
             if let target = rule.targetSubreddit, target != post.subreddit { continue }

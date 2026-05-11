@@ -8,6 +8,9 @@ struct PostDetailView: View {
     @State private var showingVideoPlayer = false
     @State private var replyText = ""
     @State private var showingReplyField = false
+    @State private var showingReportSheet = false
+    @State private var showingBlockAlert = false
+    @State private var revealNSFW = false
 
     var body: some View {
         ScrollView {
@@ -23,8 +26,24 @@ struct PostDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                ShareLink(item: URL(string: "https://reddit.com\(post.permalink)")!) {
-                    Image(systemName: "square.and.arrow.up")
+                Menu {
+                    ShareLink(item: URL(string: "https://reddit.com\(post.permalink)")!) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
+
+                    Button {
+                        showingReportSheet = true
+                    } label: {
+                        Label("Report Content", systemImage: "exclamationmark.triangle")
+                    }
+
+                    Button {
+                        showingBlockAlert = true
+                    } label: {
+                        Label("Block User", systemImage: "person.crop.circle.badge.xmark")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
                 }
             }
         }
@@ -40,6 +59,21 @@ struct PostDetailView: View {
             if let videoURL = post.videoURL, let url = URL(string: videoURL) {
                 VideoPlayerView(url: url, isPresented: $showingVideoPlayer)
             }
+        }
+        .sheet(isPresented: $showingReportSheet) {
+            ReportContentView(
+                postId: post.id,
+                postAuthor: post.author,
+                postTitle: post.title
+            )
+        }
+        .alert("Block u/\(post.author)?", isPresented: $showingBlockAlert) {
+            Button("Block", role: .destructive) {
+                ContentFilterService.shared.blockUser(post.author)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Posts and comments from this user will be hidden. You can unblock them in Settings.")
         }
     }
 
@@ -67,13 +101,7 @@ struct PostDetailView: View {
                     .foregroundStyle(.secondary)
 
                 if post.isNSFW {
-                    Text("NSFW")
-                        .font(.caption2)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
-                        .background(.red, in: RoundedRectangle(cornerRadius: 3))
+                    nsfwTag
                 }
             }
 
@@ -81,6 +109,20 @@ struct PostDetailView: View {
                 .font(.headline)
                 .fontWeight(.bold)
         }
+    }
+
+    private var nsfwTag: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.caption2)
+            Text("NSFW")
+                .font(.caption2)
+                .fontWeight(.bold)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(.red, in: RoundedRectangle(cornerRadius: 4))
     }
 
     @ViewBuilder
@@ -91,32 +133,34 @@ struct PostDetailView: View {
                 .foregroundStyle(.primary)
         }
 
+        if post.isNSFW {
+            nsfwBlurOverlay
+        }
+
         if let imageURL = post.imageURL, let url = URL(string: imageURL) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .onTapGesture { showingImageViewer = true }
-                case .failure:
-                    Color.gray.opacity(0.2)
-                        .frame(height: 200)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(Image(systemName: "photo").foregroundStyle(.secondary))
-                case .empty:
-                    Color.gray.opacity(0.1)
-                        .frame(height: 200)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(ProgressView())
-                @unknown default:
-                    EmptyView()
+            if post.isNSFW {
+                ZStack {
+                    AsyncImage(url: url) { phase in
+                        if case .success(let image) = phase {
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .blur(radius: revealNSFW ? 0 : 30)
+                                .overlay {
+                                    if !revealNSFW {
+                                        nsfwBlurOverlay
+                                    }
+                                }
+                        }
+                    }
                 }
+            } else {
+                normalImagePreview
             }
         }
 
-        if post.isVideo, let videoURL = post.videoURL {
+        if post.isVideo, post.videoURL != nil {
             Button {
                 showingVideoPlayer = true
             } label: {
@@ -150,11 +194,71 @@ struct PostDetailView: View {
         }
     }
 
+    @ViewBuilder
+    private var normalImagePreview: some View {
+        if let imageURL = post.imageURL, let url = URL(string: imageURL) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .onTapGesture { showingImageViewer = true }
+                case .failure:
+                    Color.gray.opacity(0.2)
+                        .frame(height: 200)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(Image(systemName: "photo").foregroundStyle(.secondary))
+                case .empty:
+                    Color.gray.opacity(0.1)
+                        .frame(height: 200)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(ProgressView())
+                @unknown default:
+                    EmptyView()
+                }
+            }
+        }
+    }
+
+    private var nsfwBlurOverlay: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "eye.slash.fill")
+                .font(.title2)
+                .foregroundStyle(.white)
+
+            Text("NSFW Content")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(.white)
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    revealNSFW = true
+                }
+            } label: {
+                Text("Tap to Reveal")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(.white.opacity(0.2), in: RoundedRectangle(cornerRadius: 6))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 200)
+        .background(Color.red.opacity(0.3))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
     private var postActions: some View {
         HStack(spacing: 20) {
             voteButtons
             commentButton
             saveButton
+            reportButton
             Spacer()
         }
         .padding(.vertical, 8)
@@ -203,6 +307,15 @@ struct PostDetailView: View {
         } label: {
             Image(systemName: post.isSaved ? "bookmark.fill" : "bookmark")
                 .foregroundStyle(post.isSaved ? .yellow : .secondary)
+        }
+    }
+
+    private var reportButton: some View {
+        Button {
+            showingReportSheet = true
+        } label: {
+            Image(systemName: "exclamationmark.triangle")
+                .foregroundStyle(.secondary)
         }
     }
 
