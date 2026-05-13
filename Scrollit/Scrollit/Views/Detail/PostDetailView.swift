@@ -26,28 +26,38 @@ struct PostDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    ShareLink(item: URL(string: "https://reddit.com\(post.permalink)")!) {
-                        Label("Share", systemImage: "square.and.arrow.up")
+                HStack(spacing: 12) {
+                    Button {
+                        ReadingTrackerService.shared.toggleBookmark(post: post)
+                    } label: {
+                        Image(systemName: post.isBookmarked ? "bookmark.fill" : "bookmark")
+                            .foregroundStyle(post.isBookmarked ? .orange : .blue)
                     }
 
-                    Button {
-                        showingReportSheet = true
-                    } label: {
-                        Label("Report Content", systemImage: "exclamationmark.triangle")
-                    }
+                    Menu {
+                        ShareLink(item: URL(string: "https://reddit.com\(post.permalink)")!) {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                        }
 
-                    Button {
-                        showingBlockAlert = true
+                        Button {
+                            showingReportSheet = true
+                        } label: {
+                            Label("Report Content", systemImage: "exclamationmark.triangle")
+                        }
+
+                        Button {
+                            showingBlockAlert = true
+                        } label: {
+                            Label("Block User", systemImage: "person.crop.circle.badge.xmark")
+                        }
                     } label: {
-                        Label("Block User", systemImage: "person.crop.circle.badge.xmark")
+                        Image(systemName: "ellipsis")
                     }
-                } label: {
-                    Image(systemName: "ellipsis")
                 }
             }
         }
         .task {
+            ReadingTrackerService.shared.markAsRead(post: post)
             await viewModel.loadPost(id: post.id, subreddit: post.subreddit)
         }
         .fullScreenCover(isPresented: $showingImageViewer) {
@@ -70,6 +80,7 @@ struct PostDetailView: View {
         .alert("Block u/\(post.author)?", isPresented: $showingBlockAlert) {
             Button("Block", role: .destructive) {
                 ContentFilterService.shared.blockUser(post.author)
+                HapticManager.medium()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -102,6 +113,12 @@ struct PostDetailView: View {
 
                 if post.isNSFW {
                     nsfwTag
+                }
+
+                if post.isBookmarked {
+                    Image(systemName: "bookmark.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
                 }
             }
 
@@ -162,6 +179,7 @@ struct PostDetailView: View {
 
         if post.isVideo, post.videoURL != nil {
             Button {
+                HapticManager.light()
                 showingVideoPlayer = true
             } label: {
                 HStack {
@@ -204,7 +222,10 @@ struct PostDetailView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .onTapGesture { showingImageViewer = true }
+                        .onTapGesture {
+                            HapticManager.light()
+                            showingImageViewer = true
+                        }
                 case .failure:
                     Color.gray.opacity(0.2)
                         .frame(height: 200)
@@ -234,6 +255,7 @@ struct PostDetailView: View {
                 .foregroundStyle(.white)
 
             Button {
+                HapticManager.light()
                 withAnimation(.easeInOut(duration: 0.3)) {
                     revealNSFW = true
                 }
@@ -258,7 +280,7 @@ struct PostDetailView: View {
             voteButtons
             commentButton
             saveButton
-            reportButton
+            bookmarkButton
             Spacer()
         }
         .padding(.vertical, 8)
@@ -268,6 +290,7 @@ struct PostDetailView: View {
     private var voteButtons: some View {
         HStack(spacing: 8) {
             Button {
+                HapticManager.toggle()
                 Task { await viewModel.vote(post: post, direction: post.isLiked == true ? 0 : 1) }
             } label: {
                 Image(systemName: "arrow.up")
@@ -280,6 +303,7 @@ struct PostDetailView: View {
                 .foregroundStyle(post.isLiked == true ? .orange : (post.isLiked == false ? .blue : .primary))
 
             Button {
+                HapticManager.toggle()
                 Task { await viewModel.vote(post: post, direction: post.isLiked == false ? 0 : -1) }
             } label: {
                 Image(systemName: "arrow.down")
@@ -290,6 +314,7 @@ struct PostDetailView: View {
 
     private var commentButton: some View {
         Button {
+            HapticManager.light()
             showingReplyField.toggle()
         } label: {
             HStack(spacing: 4) {
@@ -303,6 +328,7 @@ struct PostDetailView: View {
 
     private var saveButton: some View {
         Button {
+            HapticManager.toggle()
             Task { await FeedViewModel().toggleSave(post: post) }
         } label: {
             Image(systemName: post.isSaved ? "bookmark.fill" : "bookmark")
@@ -310,12 +336,12 @@ struct PostDetailView: View {
         }
     }
 
-    private var reportButton: some View {
+    private var bookmarkButton: some View {
         Button {
-            showingReportSheet = true
+            ReadingTrackerService.shared.toggleBookmark(post: post)
         } label: {
-            Image(systemName: "exclamationmark.triangle")
-                .foregroundStyle(.secondary)
+            Image(systemName: post.isBookmarked ? "star.fill" : "star")
+                .foregroundStyle(post.isBookmarked ? .orange : .secondary)
         }
     }
 
@@ -339,9 +365,11 @@ struct PostDetailView: View {
                     CommentRowView(
                         comment: comment,
                         onUpvote: {
+                            HapticManager.toggle()
                             viewModel.voteCommentById(comment.id, direction: comment.isLiked == true ? 0 : 1)
                         },
                         onDownvote: {
+                            HapticManager.toggle()
                             viewModel.voteCommentById(comment.id, direction: comment.isLiked == false ? 0 : -1)
                         },
                         onReply: { text in
@@ -368,6 +396,7 @@ struct PostDetailView: View {
                 .buttonStyle(.bordered)
 
                 Button("Reply") {
+                    HapticManager.light()
                     Task {
                         await viewModel.reply(to: "t3_\(post.id)", text: replyText)
                         replyText = ""

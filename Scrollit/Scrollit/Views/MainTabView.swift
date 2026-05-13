@@ -44,12 +44,23 @@ struct MainTabView: View {
             .tag(1)
 
             NavigationStack {
+                BookmarksView()
+            }
+            .tabItem {
+                Label("Library", systemImage: "books.vertical.fill")
+            }
+            .tag(2)
+
+            NavigationStack {
                 ProfileView()
             }
             .tabItem {
                 Label("Profile", systemImage: "person.fill")
             }
-            .tag(2)
+            .tag(3)
+        }
+        .onChange(of: selectedTab) {
+            HapticManager.selection()
         }
     }
 }

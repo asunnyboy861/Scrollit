@@ -27,6 +27,15 @@ struct PostRowView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .contentShape(Rectangle())
+        .overlay(alignment: .topTrailing) {
+            if post.isBookmarked {
+                Image(systemName: "bookmark.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                    .padding(.top, 10)
+                    .padding(.trailing, 16)
+            }
+        }
     }
 
     private var headerRow: some View {
@@ -58,6 +67,12 @@ struct PostRowView: View {
             }
 
             Spacer()
+
+            if post.isRead {
+                Circle()
+                    .fill(Color.blue.opacity(0.3))
+                    .frame(width: 6, height: 6)
+            }
 
             Text(post.createdAt.timeAgo)
                 .font(.caption2)

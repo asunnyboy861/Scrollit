@@ -1,6 +1,7 @@
 import Foundation
 import AuthenticationServices
 import SwiftUI
+import CommonCrypto
 
 @MainActor
 @Observable
@@ -47,13 +48,18 @@ final class AuthService {
             let session = ASWebAuthenticationSession(
                 url: authURL,
                 callbackURLScheme: "scrollit"
-            ) { url, error in
-                Task { @MainActor in
-                    guard let currentContinuation = self.continuation else { return }
+            ) { [weak self] url, error in
+                Task { @MainActor [weak self] in
+                    guard let self, let currentContinuation = self.continuation else { return }
                     self.continuation = nil
 
                     if let error {
-                        currentContinuation.resume(throwing: error)
+                        if let asError = error as? ASWebAuthenticationSessionError,
+                           asError.code == .canceledLogin {
+                            currentContinuation.resume(throwing: AuthError.cancelled)
+                        } else {
+                            currentContinuation.resume(throwing: error)
+                        }
                     } else if let url {
                         currentContinuation.resume(returning: url)
                     } else {
@@ -68,14 +74,22 @@ final class AuthService {
             session.presentationContextProvider = provider
 
             self.webAuthSession = session
-            _ = session.start()
+
+            guard session.start() else {
+                self.continuation = nil
+                continuation.resume(throwing: AuthError.sessionStartFailed)
+                return
+            }
         }
 
         guard let callbackComponents = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
               let codeItem = callbackComponents.queryItems?.first(where: { $0.name == "code" }),
-              let code = codeItem.value,
-              let stateItem = callbackComponents.queryItems?.first(where: { $0.name == "state" }),
-              stateItem.value == state else {
+              let code = codeItem.value else {
+            throw AuthError.invalidCallback
+        }
+
+        if let stateItem = callbackComponents.queryItems?.first(where: { $0.name == "state" }),
+           stateItem.value != state {
             throw AuthError.invalidCallback
         }
 
@@ -85,7 +99,9 @@ final class AuthService {
     private func exchangeCode(code: String, codeVerifier: String) async throws -> String {
         var request = URLRequest(url: URL(string: "https://www.reddit.com/api/v2/access_token")!)
         request.httpMethod = "POST"
-        request.setValue("Basic \((clientId + ":").data(using: .utf8)?.base64EncodedString() ?? "")", forHTTPHeaderField: "Authorization")
+
+        let credentials = (clientId + ":").data(using: .utf8)?.base64EncodedString() ?? ""
+        request.setValue("Basic \(credentials)", forHTTPHeaderField: "Authorization")
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
 
         let body = "grant_type=authorization_code&code=\(code)&redirect_uri=\(redirectURI.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? redirectURI)&code_verifier=\(codeVerifier)"
@@ -125,7 +141,9 @@ final class AuthService {
 
         var request = URLRequest(url: URL(string: "https://www.reddit.com/api/v2/access_token")!)
         request.httpMethod = "POST"
-        request.setValue("Basic \((clientId + ":").data(using: .utf8)?.base64EncodedString() ?? "")", forHTTPHeaderField: "Authorization")
+
+        let credentials = (clientId + ":").data(using: .utf8)?.base64EncodedString() ?? ""
+        request.setValue("Basic \(credentials)", forHTTPHeaderField: "Authorization")
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
 
         let body = "grant_type=refresh_token&refresh_token=\(refreshToken)"
@@ -166,7 +184,7 @@ final class AuthService {
         guard let data = verifier.data(using: .utf8) else { return "" }
         var hash = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
         data.withUnsafeBytes { pointer in
-            CC_SHA256(pointer.baseAddress, CC_LONG(data.count), &hash)
+            _ = CC_SHA256(pointer.baseAddress, CC_LONG(data.count), &hash)
         }
         return Data(hash).base64EncodedString()
             .replacingOccurrences(of: "+", with: "-")
@@ -181,6 +199,7 @@ final class AuthService {
         case tokenExchangeFailed
         case noRefreshToken
         case refreshFailed
+        case sessionStartFailed
 
         var errorDescription: String? {
             switch self {
@@ -190,6 +209,7 @@ final class AuthService {
             case .tokenExchangeFailed: return "Failed to exchange authorization code"
             case .noRefreshToken: return "No refresh token available"
             case .refreshFailed: return "Failed to refresh access token"
+            case .sessionStartFailed: return "Unable to start authentication session"
             }
         }
     }
@@ -197,22 +217,12 @@ final class AuthService {
 
 final class PresentationAnchorProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene
-        return windowScene?.keyWindow ?? ASPresentationAnchor()
+        guard let windowScene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive }),
+              let window = windowScene.windows.first(where: { $0.isKeyWindow }) else {
+            return UIWindow()
+        }
+        return window
     }
 }
-
-import CommonCrypto
-
-private func CC_SHA256(_ data: UnsafeRawPointer?, _ len: CC_LONG, _ md: UnsafeMutablePointer<UInt8>?) -> UnsafeMutablePointer<UInt8>? {
-    let length = Int(CC_SHA256_DIGEST_LENGTH)
-    let result = malloc(length)
-    if let result {
-        CC_SHA256(data, len, result.assumingMemoryBound(to: UInt8.self))
-        if let md { memcpy(md, result, length) }
-    }
-    return result?.assumingMemoryBound(to: UInt8.self)
-}
-
-private let CC_SHA256_DIGEST_LENGTH = 32
-private typealias CC_LONG = UInt32

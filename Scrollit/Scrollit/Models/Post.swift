@@ -25,6 +25,8 @@ final class Post {
     var permalink: String
     var cachedAt: Date
     var isRead: Bool
+    var isBookmarked: Bool
+    var readAt: Date?
 
     init(from dict: [String: Any]) {
         self.id = dict["name"] as? String ?? ""
@@ -46,6 +48,8 @@ final class Post {
         self.flair = dict["link_flair_text"] as? String
         self.cachedAt = Date()
         self.isRead = false
+        self.isBookmarked = false
+        self.readAt = nil
 
         if let preview = dict["preview"] as? [String: Any],
            let images = preview["images"] as? [[String: Any]],

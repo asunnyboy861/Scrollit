@@ -7,7 +7,7 @@ final class SettingsViewModel {
 
     let supportURL = "https://asunnyboy861.github.io/Scrollit/support.html"
     let privacyURL = "https://asunnyboy861.github.io/Scrollit/privacy.html"
-    let termsURL = "https://asunnyboy861.github.io/Scrollit/terms.html"
+    let termsURL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
 
     var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"

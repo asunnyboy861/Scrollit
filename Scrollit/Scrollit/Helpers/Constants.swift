@@ -17,5 +17,5 @@ enum Constants {
     static let feedbackBackendURL = "https://feedback-board.iocompile67692.workers.dev"
     static let supportPageURL = "https://asunnyboy861.github.io/Scrollit/support.html"
     static let privacyPageURL = "https://asunnyboy861.github.io/Scrollit/privacy.html"
-    static let termsPageURL = "https://asunnyboy861.github.io/Scrollit/terms.html"
+    static let termsPageURL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
 }

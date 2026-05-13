@@ -21,7 +21,7 @@ struct EULAConsentView: View {
                 .font(.system(size: 40))
                 .foregroundStyle(.orange)
 
-            Text("Terms of Use")
+            Text("Terms of Use (EULA)")
                 .font(.title2)
                 .fontWeight(.bold)
 
@@ -65,6 +65,22 @@ struct EULAConsentView: View {
                     title: "6. NSFW Content Controls",
                     content: "NSFW content visibility is managed through your Reddit account settings on reddit.com. You cannot enable or disable NSFW content within the Scrollit app. To change your NSFW preferences, visit reddit.com/settings/feed."
                 )
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Legal Links")
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+
+                    Link("Privacy Policy", destination: URL(string: "https://asunnyboy861.github.io/Scrollit/privacy.html")!)
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+
+                    Link("Terms of Use (EULA)", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                }
             }
             .padding()
             .background(GeometryReader { geometry in
@@ -90,7 +106,7 @@ struct EULAConsentView: View {
                 UserDefaults.standard.set(true, forKey: "eula_accepted")
                 onAgree()
             } label: {
-                Text("I Agree to the Terms of Use")
+                Text("I Agree to the Terms of Use (EULA)")
                     .font(.headline)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)

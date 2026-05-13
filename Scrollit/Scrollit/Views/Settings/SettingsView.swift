@@ -100,7 +100,7 @@ struct SettingsView: View {
     private var legalSection: some View {
         Section("Legal") {
             Link("Privacy Policy", destination: URL(string: viewModel.privacyURL)!)
-            Link("Terms of Use", destination: URL(string: viewModel.termsURL)!)
+            Link("Terms of Use (EULA)", destination: URL(string: viewModel.termsURL)!)
             Link("Support", destination: URL(string: viewModel.supportURL)!)
             NavigationLink {
                 ContactSupportView()

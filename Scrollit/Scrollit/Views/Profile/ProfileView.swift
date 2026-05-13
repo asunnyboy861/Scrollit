@@ -26,6 +26,13 @@ struct ProfileView: View {
                 await viewModel.loadProfile(modelContext: modelContext)
             }
         }
+        .onChange(of: viewModel.isLoggedIn) {
+            if viewModel.isLoggedIn {
+                Task {
+                    await viewModel.loadProfile(modelContext: modelContext)
+                }
+            }
+        }
         .sheet(isPresented: $showingLogin) {
             LoginView()
         }
