@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		8C8AE0AF08428941714C867C /* Scrollit.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 30F6395808EB3B260075274D /* Scrollit.storekit */; };
+		A9E120EE207323CB341B5039 /* Scrollit.storekit in Sources */ = {isa = PBXBuildFile; fileRef = 30F6395808EB3B260075274D /* Scrollit.storekit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		6AA413A52FB03DD9006ABF8E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,6 +29,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		30F6395808EB3B260075274D /* Scrollit.storekit */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = json; path = Scrollit.storekit; sourceTree = "<group>"; };
 		6AA413972FB03DD8006ABF8E /* Scrollit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Scrollit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6AA413A42FB03DD9006ABF8E /* ScrollitTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScrollitTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6AA413AE2FB03DD9006ABF8E /* ScrollitUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScrollitUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -32,16 +38,22 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		6AA413992FB03DD8006ABF8E /* Scrollit */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = Scrollit;
 			sourceTree = "<group>";
 		};
 		6AA413A72FB03DD9006ABF8E /* ScrollitTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = ScrollitTests;
 			sourceTree = "<group>";
 		};
 		6AA413B12FB03DD9006ABF8E /* ScrollitUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = ScrollitUITests;
 			sourceTree = "<group>";
 		};
@@ -79,6 +91,7 @@
 				6AA413A72FB03DD9006ABF8E /* ScrollitTests */,
 				6AA413B12FB03DD9006ABF8E /* ScrollitUITests */,
 				6AA413982FB03DD8006ABF8E /* Products */,
+				30F6395808EB3B260075274D /* Scrollit.storekit */,
 			);
 			sourceTree = "<group>";
 		};
@@ -111,8 +124,6 @@
 				6AA413992FB03DD8006ABF8E /* Scrollit */,
 			);
 			name = Scrollit;
-			packageProductDependencies = (
-			);
 			productName = Scrollit;
 			productReference = 6AA413972FB03DD8006ABF8E /* Scrollit.app */;
 			productType = "com.apple.product-type.application";
@@ -134,8 +145,6 @@
 				6AA413A72FB03DD9006ABF8E /* ScrollitTests */,
 			);
 			name = ScrollitTests;
-			packageProductDependencies = (
-			);
 			productName = ScrollitTests;
 			productReference = 6AA413A42FB03DD9006ABF8E /* ScrollitTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -157,8 +166,6 @@
 				6AA413B12FB03DD9006ABF8E /* ScrollitUITests */,
 			);
 			name = ScrollitUITests;
-			packageProductDependencies = (
-			);
 			productName = ScrollitUITests;
 			productReference = 6AA413AE2FB03DD9006ABF8E /* ScrollitUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -212,6 +219,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8C8AE0AF08428941714C867C /* Scrollit.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -236,6 +244,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A9E120EE207323CB341B5039 /* Scrollit.storekit in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
