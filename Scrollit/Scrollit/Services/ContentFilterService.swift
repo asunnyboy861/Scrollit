@@ -52,16 +52,56 @@ final class ContentFilterService {
     }
 
     func shouldFilter(post: Post) -> Bool {
-        if !AuthService.shared.isLoggedIn && post.isNSFW { return true }
+        if !AuthService.shared.isLoggedIn && post.isNSFW {
+            return true
+        }
 
-        if isUserBlocked(post.author) { return true }
+        if isUserBlocked(post.author) {
+            return true
+        }
 
         for rule in filterRules where rule.isEnabled {
-            if let target = rule.targetSubreddit, target != post.subreddit { continue }
-            if post.title.localizedCaseInsensitiveContains(rule.keyword) { return true }
-            if let body = post.body, body.localizedCaseInsensitiveContains(rule.keyword) { return true }
+            if let target = rule.targetSubreddit, target != post.subreddit {
+                continue
+            }
+            if post.title.localizedCaseInsensitiveContains(rule.keyword) {
+                return true
+            }
+            if let body = post.body, body.localizedCaseInsensitiveContains(rule.keyword) {
+                return true
+            }
         }
 
         return false
     }
+
+    func reportContent(postId: String, author: String, reason: String) {
+        let report = ContentReport(
+            postId: postId,
+            author: author,
+            reason: reason,
+            timestamp: Date()
+        )
+        var reports = getAllReports()
+        reports.append(report)
+        saveReports(reports)
+    }
+
+    func getAllReports() -> [ContentReport] {
+        let data = UserDefaults.standard.data(forKey: "content_reports")
+        guard let data else { return [] }
+        return (try? JSONDecoder().decode([ContentReport].self, from: data)) ?? []
+    }
+
+    func saveReports(_ reports: [ContentReport]) {
+        let data = try? JSONEncoder().encode(reports)
+        UserDefaults.standard.set(data, forKey: "content_reports")
+    }
+}
+
+struct ContentReport: Codable {
+    let postId: String
+    let author: String
+    let reason: String
+    let timestamp: Date
 }

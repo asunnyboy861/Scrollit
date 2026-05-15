@@ -8,26 +8,32 @@ struct ProfileView: View {
 
     var body: some View {
         List {
-            if viewModel.isLoggedIn, let profile = viewModel.userProfile {
-                loggedInSection(profile)
+            if viewModel.isLoggedIn {
+                if AuthService.shared.isDemoMode {
+                    demoBanner
+                }
+
+                if let profile = viewModel.userProfile {
+                    loggedInSection(profile)
+                } else if AuthService.shared.isDemoMode {
+                    demoProfileSection
+                }
+
+                accountActionsSection
             } else {
                 loggedOutSection
-            }
-
-            if viewModel.isLoggedIn {
-                accountActionsSection
             }
 
             settingsSection
         }
         .navigationTitle("Profile")
         .task {
-            if viewModel.isLoggedIn {
+            if viewModel.isLoggedIn && !AuthService.shared.isDemoMode {
                 await viewModel.loadProfile(modelContext: modelContext)
             }
         }
         .onChange(of: viewModel.isLoggedIn) {
-            if viewModel.isLoggedIn {
+            if viewModel.isLoggedIn && !AuthService.shared.isDemoMode {
                 Task {
                     await viewModel.loadProfile(modelContext: modelContext)
                 }
@@ -35,6 +41,57 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showingLogin) {
             LoginView()
+        }
+    }
+
+    private var demoBanner: some View {
+        Section {
+            VStack(spacing: 4) {
+                HStack(spacing: 8) {
+                    Image(systemName: "play.circle.fill")
+                        .foregroundStyle(.blue)
+                    Text("Demo Mode")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.blue)
+                    Spacer()
+                    if let remaining = AuthService.shared.demoTimeRemaining {
+                        Text(remaining)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Text("Subscribe to keep all Pro features after demo expires")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private var demoProfileSection: some View {
+        Section {
+            HStack(spacing: 12) {
+                Image(systemName: "person.circle.fill")
+                    .font(.system(size: 50))
+                    .foregroundStyle(.blue)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Demo User")
+                        .font(.headline)
+
+                    HStack(spacing: 12) {
+                        Label("1,234", systemImage: "arrow.up")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Label("567", systemImage: "text.bubble")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(.vertical, 4)
         }
     }
 
@@ -114,7 +171,7 @@ struct ProfileView: View {
             Button(role: .destructive) {
                 viewModel.logout()
             } label: {
-                Label("Log Out", systemImage: "rectangle.portrait.and.arrow.right")
+                Label(AuthService.shared.isDemoMode ? "Exit Demo Mode" : "Log Out", systemImage: "rectangle.portrait.and.arrow.right")
             }
         }
     }

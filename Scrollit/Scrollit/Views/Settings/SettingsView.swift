@@ -4,6 +4,8 @@ import SwiftData
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = SettingsViewModel()
+    @State private var isRestoring = false
+    @State private var restoreMessage: String?
 
     var body: some View {
         List {
@@ -45,9 +47,33 @@ struct SettingsView: View {
             }
 
             Button {
-                Task { await viewModel.restorePurchases() }
+                Task {
+                    isRestoring = true
+                    restoreMessage = nil
+                    await viewModel.restorePurchases()
+                    isRestoring = false
+                    if viewModel.isPro {
+                        restoreMessage = "Purchases restored successfully!"
+                    } else {
+                        restoreMessage = "No active subscriptions found."
+                    }
+                }
             } label: {
-                Label("Restore Purchases", systemImage: "arrow.uturn.down")
+                HStack {
+                    if isRestoring {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                    Label(isRestoring ? "Restoring..." : "Restore Purchases", systemImage: "arrow.uturn.down")
+                        .foregroundStyle(isRestoring ? Color.secondary : Color.blue)
+                }
+            }
+            .disabled(isRestoring)
+
+            if let message = restoreMessage {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(viewModel.isPro ? .green : .secondary)
             }
         }
     }

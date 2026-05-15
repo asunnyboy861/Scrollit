@@ -10,6 +10,10 @@ final class SubscriptionManager {
     var monthlyProduct: Product?
     var yearlyProduct: Product?
     var isLoading = false
+    var errorMessage: String?
+    var purchaseMessage: String?
+
+    var isRealPro: Bool { isPro && !AuthService.shared.isDemoMode }
 
     private let monthlyID = "com.zzoutuo.Scrollit.pro.monthly"
     private let yearlyID = "com.zzoutuo.Scrollit.pro.yearly"
@@ -18,8 +22,8 @@ final class SubscriptionManager {
 
     private init() {
         updateTask = Task {
-            await updateSubscriptionStatus()
             await loadProducts()
+            await updateSubscriptionStatus()
             await listenForTransactions()
         }
     }
@@ -37,12 +41,20 @@ final class SubscriptionManager {
                 default: break
                 }
             }
+
+            if storeProducts.isEmpty {
+                errorMessage = "Unable to load subscription products. Please check your internet connection and try again."
+            } else {
+                errorMessage = nil
+            }
         } catch {
-            print("Failed to load products: \(error)")
+            errorMessage = "Failed to load products: \(error.localizedDescription)"
         }
     }
 
     func purchase(_ product: Product) async -> Bool {
+        errorMessage = nil
+
         do {
             let result = try await product.purchase()
 
@@ -55,22 +67,30 @@ final class SubscriptionManager {
             case .userCancelled:
                 return false
             case .pending:
+                errorMessage = "Your purchase is pending approval. You will get access once it is approved."
                 return false
             @unknown default:
+                errorMessage = "Unknown purchase result. Please try again."
                 return false
             }
         } catch {
-            print("Purchase failed: \(error)")
+            errorMessage = "Purchase failed: \(error.localizedDescription)"
             return false
         }
     }
 
     func restorePurchases() async {
+        errorMessage = nil
+
         do {
             try await AppStore.sync()
             await updateSubscriptionStatus()
+
+            if !isPro {
+                errorMessage = "No active subscriptions found to restore."
+            }
         } catch {
-            print("Restore failed: \(error)")
+            errorMessage = "Restore failed: \(error.localizedDescription)"
         }
     }
 
@@ -81,12 +101,36 @@ final class SubscriptionManager {
             if case .verified(let transaction) = result {
                 if transaction.productID == monthlyID || transaction.productID == yearlyID {
                     hasActiveSubscription = true
-                    break
                 }
+                await transaction.finish()
             }
         }
 
         isPro = hasActiveSubscription
+    }
+
+    func handlePurchaseCompletion(result: Result<Product.PurchaseResult, Error>) {
+        switch result {
+        case .success(let purchaseResult):
+            switch purchaseResult {
+            case .success(let verification):
+                do {
+                    let transaction = try checkVerified(verification)
+                    isPro = true
+                    Task { await transaction.finish() }
+                } catch {
+                    errorMessage = error.localizedDescription
+                }
+            case .userCancelled:
+                break
+            case .pending:
+                errorMessage = "Your purchase is pending approval."
+            @unknown default:
+                errorMessage = "Unknown purchase result."
+            }
+        case .failure(let error):
+            errorMessage = "Purchase failed: \(error.localizedDescription)"
+        }
     }
 
     private func listenForTransactions() async {
@@ -104,17 +148,17 @@ final class SubscriptionManager {
         switch result {
         case .verified(let transaction):
             return transaction
-        case .unverified:
-            throw SubscriptionError.verificationFailed
+        case .unverified(let transaction, let error):
+            throw SubscriptionError.verificationFailed(error.localizedDescription)
         }
     }
 
     enum SubscriptionError: LocalizedError {
-        case verificationFailed
+        case verificationFailed(String)
 
         var errorDescription: String? {
             switch self {
-            case .verificationFailed: return "Purchase verification failed"
+            case .verificationFailed(let reason): return "Purchase verification failed: \(reason)"
             }
         }
     }

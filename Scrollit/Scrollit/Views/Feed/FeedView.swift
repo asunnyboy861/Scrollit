@@ -114,5 +114,19 @@ struct FeedView: View {
         } label: {
             Label(post.isSaved ? "Unsave" : "Save", systemImage: post.isSaved ? "bookmark.slash" : "bookmark.fill")
         }
+
+        Divider()
+
+        Button {
+            ContentFilterService.shared.reportContent(postId: post.id, author: post.author, reason: "User reported from context menu")
+        } label: {
+            Label("Report Content", systemImage: "exclamationmark.triangle")
+        }
+
+        Button {
+            ContentFilterService.shared.blockUser(post.author)
+        } label: {
+            Label("Block User", systemImage: "person.crop.circle.badge.xmark")
+        }
     }
 }

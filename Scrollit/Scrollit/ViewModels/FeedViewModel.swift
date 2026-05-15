@@ -82,7 +82,18 @@ final class FeedViewModel {
     }
 
     func vote(post: Post, direction: Int, modelContext: ModelContext) async {
-        guard subscription.isPro, let token = auth.currentToken else { return }
+        guard subscription.isPro else { return }
+
+        if auth.isDemoMode {
+            withAnimation(.spring(duration: 0.3)) {
+                let originalLiked = post.isLiked
+                post.isLiked = direction == 1 ? true : (direction == -1 ? false : nil)
+                post.score += (direction == 1 ? 1 : (direction == -1 ? -1 : (originalLiked == true ? -1 : (originalLiked == false ? 1 : 0))))
+            }
+            return
+        }
+
+        guard let token = auth.currentToken else { return }
 
         let originalLiked = post.isLiked
         let originalScore = post.score
@@ -103,7 +114,16 @@ final class FeedViewModel {
     }
 
     func toggleSave(post: Post) async {
-        guard subscription.isPro, let token = auth.currentToken else { return }
+        guard subscription.isPro else { return }
+
+        if auth.isDemoMode {
+            withAnimation(.spring(duration: 0.3)) {
+                post.isSaved.toggle()
+            }
+            return
+        }
+
+        guard let token = auth.currentToken else { return }
 
         let originalSaved = post.isSaved
         post.isSaved = !post.isSaved

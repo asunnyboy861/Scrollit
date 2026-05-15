@@ -4,7 +4,9 @@ import AuthenticationServices
 struct LoginView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isLoading = false
+    @State private var isLoadingApple = false
     @State private var error: String?
+    @State private var appleError: String?
 
     var body: some View {
         NavigationStack {
@@ -36,6 +38,30 @@ struct LoginView: View {
                     .padding(.horizontal, 32)
                 }
 
+                if let appleError {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                        Text(appleError)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                    .padding(.horizontal, 32)
+                }
+
+                SignInWithAppleButton(.signIn) { request in
+                    request.requestedScopes = [.fullName, .email]
+                } onCompletion: { result in
+                    Task { await handleAppleSignIn(result) }
+                }
+                .frame(height: 50)
+                .cornerRadius(12)
+                .padding(.horizontal, 32)
+                .disabled(isLoadingApple)
+
+                Divider()
+                    .padding(.horizontal, 32)
+
                 Button {
                     Task { await performLogin() }
                 } label: {
@@ -45,7 +71,7 @@ struct LoginView: View {
                                 .controlSize(.small)
                                 .tint(.white)
                         }
-                        Text(isLoading ? "Signing In..." : "Continue")
+                        Text(isLoading ? "Signing In..." : "Continue with Reddit")
                             .fontWeight(.semibold)
                     }
                     .frame(maxWidth: .infinity)
@@ -57,6 +83,8 @@ struct LoginView: View {
                 .disabled(isLoading)
 
                 Spacer()
+
+                demoModeSection
             }
             .navigationTitle("Login")
             .navigationBarTitleDisplayMode(.inline)
@@ -65,11 +93,34 @@ struct LoginView: View {
                     Button("Cancel") {
                         dismiss()
                     }
-                    .disabled(isLoading)
+                    .disabled(isLoading || isLoadingApple)
                 }
             }
-            .interactiveDismissDisabled(isLoading)
+            .interactiveDismissDisabled(isLoading || isLoadingApple)
         }
+    }
+
+    private var demoModeSection: some View {
+        VStack(spacing: 8) {
+            Text("Don't have a Reddit account?")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            Button {
+                AuthService.shared.enableDemoMode()
+                HapticManager.success()
+                dismiss()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "play.circle.fill")
+                    Text("Try Demo Mode")
+                        .fontWeight(.medium)
+                }
+                .font(.subheadline)
+                .foregroundStyle(.blue)
+            }
+        }
+        .padding(.bottom, 24)
     }
 
     private func performLogin() async {
@@ -98,5 +149,43 @@ struct LoginView: View {
         }
 
         isLoading = false
+    }
+
+    private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) async {
+        isLoadingApple = true
+        appleError = nil
+
+        switch result {
+        case .success(let authorization):
+            if let credential = authorization.credential as? ASAuthorizationAppleIDCredential {
+                let userId = credential.user
+
+                UserDefaults.standard.set(userId, forKey: "apple_user_id")
+
+                if let email = credential.email {
+                    UserDefaults.standard.set(email, forKey: "apple_email")
+                }
+
+                if let fullName = credential.fullName {
+                    let name = [fullName.givenName, fullName.familyName]
+                        .compactMap { $0 }
+                        .joined(separator: " ")
+                    if !name.isEmpty {
+                        UserDefaults.standard.set(name, forKey: "apple_full_name")
+                    }
+                }
+
+                HapticManager.success()
+                dismiss()
+            }
+        case .failure(let error):
+            if let authError = error as? ASAuthorizationError, authError.code == .canceled {
+                break
+            } else {
+                self.appleError = "Sign in with Apple failed: \(error.localizedDescription)"
+            }
+        }
+
+        isLoadingApple = false
     }
 }

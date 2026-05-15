@@ -41,7 +41,18 @@ final class PostDetailViewModel {
     }
 
     func vote(post: Post, direction: Int) async {
-        guard subscription.isPro, let token = auth.currentToken else { return }
+        guard subscription.isPro else { return }
+
+        if auth.isDemoMode {
+            withAnimation(.spring(duration: 0.3)) {
+                let originalLiked = post.isLiked
+                post.isLiked = direction == 1 ? true : (direction == -1 ? false : nil)
+                post.score += (direction == 1 ? 1 : (direction == -1 ? -1 : (originalLiked == true ? -1 : (originalLiked == false ? 1 : 0))))
+            }
+            return
+        }
+
+        guard let token = auth.currentToken else { return }
 
         let originalLiked = post.isLiked
         let originalScore = post.score
@@ -62,12 +73,15 @@ final class PostDetailViewModel {
     }
 
     func voteCommentById(_ commentId: String, direction: Int) {
+        guard subscription.isPro else { return }
         guard let index = comments.firstIndex(where: { $0.id == commentId }) else { return }
         let originalLiked = comments[index].isLiked
         let originalScore = comments[index].score
 
         comments[index].isLiked = direction == 1 ? true : (direction == -1 ? false : nil)
         comments[index].score = originalScore + (direction == 1 ? 1 : (direction == -1 ? -1 : (originalLiked == true ? -1 : (originalLiked == false ? 1 : 0))))
+
+        if auth.isDemoMode { return }
 
         Task {
             do {
@@ -80,7 +94,25 @@ final class PostDetailViewModel {
     }
 
     func reply(to parentId: String, text: String) async {
-        guard subscription.isPro, let token = auth.currentToken else { return }
+        guard subscription.isPro else { return }
+
+        if auth.isDemoMode {
+            let newComment = CommentItem(
+                id: UUID().uuidString,
+                author: "Demo User",
+                body: text,
+                score: 1,
+                createdAt: Date(),
+                depth: 0,
+                isLiked: true,
+                parentId: parentId,
+                replies: []
+            )
+            comments.insert(newComment, at: 0)
+            return
+        }
+
+        guard let token = auth.currentToken else { return }
 
         do {
             let result = try await api.submitComment(parentId: parentId, text: text, token: token)

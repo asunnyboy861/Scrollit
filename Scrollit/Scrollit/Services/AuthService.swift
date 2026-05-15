@@ -8,13 +8,54 @@ import CommonCrypto
 final class AuthService {
     static let shared = AuthService()
 
-    private let clientId = "scrollit_app"
-    private let redirectURI = "scrollit://oauth/callback"
-    private let scope = "identity read vote submit save history"
+    private let clientId = Constants.redditClientId
+    private let redirectURI = Constants.redditRedirectURI
+    private let scope = Constants.redditScope
     private let tokenManager = TokenManager.shared
 
-    var isLoggedIn: Bool { tokenManager.accessToken != nil }
+    var isLoggedIn: Bool { tokenManager.accessToken != nil || isDemoMode }
     var currentToken: String? { tokenManager.accessToken }
+
+    var isDemoMode: Bool {
+        get {
+            guard UserDefaults.standard.bool(forKey: "demo_mode_enabled") else { return false }
+            let startTime = UserDefaults.standard.double(forKey: "demo_mode_start_time")
+            guard startTime > 0 else { return false }
+            let elapsed = Date().timeIntervalSince1970 - startTime
+            if elapsed > 86400 {
+                clearDemoMode()
+                return false
+            }
+            return true
+        }
+        set {
+            if newValue {
+                UserDefaults.standard.set(true, forKey: "demo_mode_enabled")
+                UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "demo_mode_start_time")
+                SubscriptionManager.shared.isPro = true
+            } else {
+                clearDemoMode()
+            }
+        }
+    }
+
+    var demoTimeRemaining: String? {
+        guard isDemoMode else { return nil }
+        let startTime = UserDefaults.standard.double(forKey: "demo_mode_start_time")
+        let elapsed = Date().timeIntervalSince1970 - startTime
+        let remaining = max(0, 86400 - elapsed)
+        let hours = Int(remaining) / 3600
+        let minutes = (Int(remaining) % 3600) / 60
+        return "\(hours)h \(minutes)m remaining"
+    }
+
+    private func clearDemoMode() {
+        UserDefaults.standard.set(false, forKey: "demo_mode_enabled")
+        UserDefaults.standard.removeObject(forKey: "demo_mode_start_time")
+        Task {
+            await SubscriptionManager.shared.updateSubscriptionStatus()
+        }
+    }
 
     private var continuation: CheckedContinuation<URL, Error>?
     private var webAuthSession: ASWebAuthenticationSession?
@@ -26,7 +67,7 @@ final class AuthService {
         let codeChallenge = generateCodeChallenge(from: codeVerifier)
 
         let state = UUID().uuidString
-        var components = URLComponents(string: "https://www.reddit.com/api/v2/authorize")!
+        var components = URLComponents(string: Constants.redditAuthURL)!
         components.queryItems = [
             URLQueryItem(name: "client_id", value: clientId),
             URLQueryItem(name: "response_type", value: "code"),
@@ -96,8 +137,20 @@ final class AuthService {
         return try await exchangeCode(code: code, codeVerifier: codeVerifier)
     }
 
+    func enableDemoMode() {
+        isDemoMode = true
+        SubscriptionManager.shared.isPro = true
+    }
+
+    func logout() {
+        if isDemoMode {
+            isDemoMode = false
+        }
+        tokenManager.clearTokens()
+    }
+
     private func exchangeCode(code: String, codeVerifier: String) async throws -> String {
-        var request = URLRequest(url: URL(string: "https://www.reddit.com/api/v2/access_token")!)
+        var request = URLRequest(url: URL(string: Constants.redditTokenURL)!)
         request.httpMethod = "POST"
 
         let credentials = (clientId + ":").data(using: .utf8)?.base64EncodedString() ?? ""
@@ -139,7 +192,7 @@ final class AuthService {
             throw AuthError.noRefreshToken
         }
 
-        var request = URLRequest(url: URL(string: "https://www.reddit.com/api/v2/access_token")!)
+        var request = URLRequest(url: URL(string: Constants.redditTokenURL)!)
         request.httpMethod = "POST"
 
         let credentials = (clientId + ":").data(using: .utf8)?.base64EncodedString() ?? ""
@@ -164,10 +217,6 @@ final class AuthService {
         )
 
         return accessToken
-    }
-
-    func logout() {
-        tokenManager.clearTokens()
     }
 
     private func generateCodeVerifier() -> String {
